@@ -1150,7 +1150,7 @@ def render_pattern_analysis_tab():
             return "background-color:#F8D7DA; color:#721c24"
 
         st.dataframe(
-            disp_df.style.applymap(color_strength, subset=["Strength"])
+            disp_df.style.map(color_strength, subset=["Strength"])
                          .background_gradient(subset=["Cramer's V"], cmap="Blues"),
             use_container_width=True, height=380,
         )
@@ -1777,7 +1777,7 @@ def render_pattern_analysis_tab():
                 f"**{len(rules_df)} leaf rules extracted**")
 
         st.dataframe(
-        rules_df.style.applymap(style_pred, subset=["Prediction"])
+        rules_df.style.map(style_pred, subset=["Prediction"])
                       .background_gradient(subset=["% Positive"], cmap="RdYlGn",
                                            vmin=0, vmax=100),
         use_container_width=True, height=420,
@@ -2338,7 +2338,7 @@ def render_pattern_analysis_tab():
 
         st.dataframe(
             summary5.style
-                .applymap(style_pattern, subset=["Pattern"])
+                .map(style_pattern, subset=["Pattern"])
                 .background_gradient(subset=["% Positive"], cmap="RdYlGn", vmin=0, vmax=100)
                 .format({"% Positive": "{:.1f}%"}),
             use_container_width=True,
