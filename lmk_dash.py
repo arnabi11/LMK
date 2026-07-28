@@ -1098,7 +1098,9 @@ def render_pattern_analysis_tab():
         for _, row in pair_df.iterrows():
             mat.loc[row["Feature A"], row["Feature B"]] = row["Cramer's V"]
             mat.loc[row["Feature B"], row["Feature A"]] = row["Cramer's V"]
-        np.fill_diagonal(mat.values, 1.0)
+        mat_vals = mat.to_numpy(copy=True)
+        np.fill_diagonal(mat_vals, 1.0)
+        mat = pd.DataFrame(mat_vals, index=feat_labels, columns=feat_labels)
 
         fig_heat = px.imshow(
             mat, text_auto=".2f",
