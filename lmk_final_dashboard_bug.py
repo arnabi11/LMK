@@ -188,9 +188,33 @@ def load_data():
         "Disability (Y10SDD+AP+7/8, YIoP+7/8, YSII+7/8)":               "disability",
         "Sexuality (Y10SDD+AP, YIoP, YSII)":                             "sexuality",
         "Neurodivergent (Y10SDD+AP+7/8, YIoP+7/8, YSII+7/8)":           "neurodivergent",
+        # Open-text columns for word analysis
+        # Exact header variants seen in real CSVs — all tried, misses silently skipped
+        "One thing learned (Y10SDD+AP+7/8, Y10SPri, YDDPri)":                           "text_one_learned",
+        "One thing good/liked about workshop (Y10SDDAP+7/8, Y10SInc+Pri, YDDPri, YIoP7/8, YSIIInc+7/8)": "text_one_good",
+        "One thing LMK should change (Y10SDDAP+7/8, Y10SInc+Pri, YDDPri, YIoP7/8, YSIIInc+7/8)":        "text_one_change",
+        "Anything else you'd like to tell us (Y10SDD, YIoP, YSII)":                    "text_anything_else",
     }
-    # Only rename columns that exist
+    # Only rename columns that exist (exact match first)
     df_v = df_v.rename(columns={k: v for k, v in rename_map.items() if k in df_v.columns})
+
+    # --- Fuzzy fallback: map any unmatched column whose name contains
+    #     a key phrase to our target short name.  This handles minor
+    #     spacing / punctuation differences between CSV exports. --------
+    _fuzzy_map = {
+        "text_one_learned":    "one thing learned",
+        "text_one_good":       "one thing good",
+        "text_one_change":     "one thing lmk should change",
+        "text_anything_else":  "anything else",
+    }
+    _already_renamed = set(df_v.columns)
+    for short_name, phrase in _fuzzy_map.items():
+        if short_name in _already_renamed:
+            continue          # exact rename already worked
+        for col in list(df_v.columns):
+            if phrase in col.lower() and col != short_name:
+                df_v = df_v.rename(columns={col: short_name})
+                break
 
     # Normalise blanks / non-answers to NaN
     null_vals = {"Not Answered", "nan", "", "left blank", "(left blank)", "N/A", "n/a"}
@@ -1006,11 +1030,9 @@ def render_pattern_analysis_tab():
                 height=max(320, 32*len(feat_imp)+80),
                 margin=dict(t=48, b=40, l=10, r=20),
                 coloraxis_showscale=False,
-                yaxis=dict(title=""),
-                xaxis=dict(title="Mean |SHAP value| - more impact"),
-                # yaxis=dict(title="", tickfont=dict(color="#333333", size=10)),
-                # xaxis=dict(title="Mean |SHAP value| (higher = more impact)",
-                #            tickfont=dict(color="#333333", size=10)),
+                yaxis=dict(title="", tickfont=dict(color="#333333", size=10)),
+                xaxis=dict(title="Mean |SHAP value| (higher = more impact)",
+                           tickfont=dict(color="#333333", size=10)),
             )
             st.plotly_chart(fig_bar, use_container_width=True)
             _top1 = feat_imp.sort_values("Mean |SHAP|", ascending=False).iloc[0]
@@ -2592,15 +2614,479 @@ def render_pattern_analysis_tab():
         "All patterns are data-driven, not hand-picked."
     )
 
+
+# -------------------------------------------------------------
+# WORD ANALYSIS TAB
+# -------------------------------------------------------------
+def render_word_analysis_tab():
+    """Word frequency, word cloud, bigrams, and sentiment for
+    each of the 4 survey outcome questions.  Uses the filtered
+    dfv that is already computed by apply_filters()."""
+
+    try:
+        from wordcloud import WordCloud, STOPWORDS
+        WC_AVAILABLE = True
+    except ImportError:
+        WC_AVAILABLE = False
+
+    import io, base64, re
+    from collections import Counter
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    # -- Config ---------------------------------------------------
+    NULL_TEXT = {
+        "not answered", "n/a", "na", "nan", "none", "nothing",
+        "left blank", "no", "nothing to add", "nothing else",
+        "nothing really", "i dont know", "i don't know",
+        "no comment", "no feedback", "no thanks", "n.a", "n/a.",
+        "not sure", "unsure", "nothing more", "no change",
+        "no changes", "nothing needed", "all good", "all fine",
+    }
+
+    STOPWORDS_CUSTOM = set(STOPWORDS) | {
+        "thing", "one", "something", "think", "know", "would",
+        "could", "really", "also", "make", "get", "like",
+        "just", "bit", "lot", "way", "well", "good", "great",
+        "nice", "thank", "thanks", "today", "workshop",
+        "session", "lmk", "leader", "learnt", "learned",
+        "think", "feel", "felt", "will", "can", "use", "used",
+        "maybe", "perhaps", "although", "however",
+    } if WC_AVAILABLE else set()
+
+    # -- Helpers --------------------------------------------------
+    def clean_text_series(series):
+        """Return a cleaned list of non-null text responses."""
+        # Expanded junk list covering common survey non-answers
+        _junk = NULL_TEXT | {
+            "n", "na", "no comment", "nothing", "nothing really",
+            "not answered", "left blank", "nothing to add",
+            "nothing else", "nothing more", "nothing needed",
+            "all good", "all fine", "all great", "fine",
+            "no changes", "no change", "no feedback",
+            "none", "nope", "no thanks", "no idea",
+            "i dont know", "i don't know", "idk",
+            "unsure", "not sure", "nothing in particular",
+            "can't think", "cant think", "nothing comes to mind",
+            "everything was good", "everything is good",
+            "it was good", "it was great", "it was fine",
+            "nothing to change", "nothing i would change",
+            "i would not change anything", "i would change nothing",
+            "nothing, it was great", "nothing, it was good",
+            "n/a", "n.a", "na.", "no.", "nothing.",
+        }
+        cleaned = []
+        for val in series.dropna():
+            v = str(val).strip()
+            if v.lower() in _junk or len(v) < 4:
+                continue
+            # Remove content in brackets (e.g. "[illegible]")
+            v = re.sub(r"[\[\]]", " ", v)
+            # Keep only letters, spaces, apostrophes
+            v = re.sub(r"[^a-zA-Z ']", ' ', v)
+            v = re.sub(r"\s+", " ", v).strip().lower()
+            if len(v) >= 4:
+                cleaned.append(v)
+        return cleaned
+
+    def tokenise(texts):
+        """Flatten texts to word list, remove stopwords."""
+        words = []
+        for t in texts:
+            for w in t.split():
+                w = w.strip(chr(39) + chr(34) + chr(46) + chr(44) + chr(33) + chr(63) + chr(59) + chr(58)).lower()
+                if len(w) >= 3 and w not in STOPWORDS_CUSTOM:
+                    words.append(w)
+        return words
+
+    def bigrams(words):
+        return [(words[i], words[i+1]) for i in range(len(words)-1)]
+
+    def freq_bar(counter, n, title, color):
+        """Horizontal bar of top-n words/bigrams."""
+        items  = counter.most_common(n)
+        if not items:
+            return empty_fig("No text data available")
+        labels = [" ".join(i[0]) if isinstance(i[0], tuple) else i[0]
+                  for i in items]
+        counts = [i[1] for i in items]
+        fig = px.bar(
+            x=counts, y=labels, orientation="h",
+            title=title,
+            color=counts,
+            color_continuous_scale="Blues",
+            labels={"x": "Frequency", "y": ""},
+        )
+        fig.update_traces(
+            texttemplate="%{x}", textposition="inside",
+            insidetextanchor="end",
+            textfont=dict(color="#111111", size=10),
+            marker_line_width=0,
+        )
+        fig.update_layout(
+            plot_bgcolor="#FFFFFF",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#333333", size=11),
+            height=max(300, 26*n+80),
+            margin=dict(t=48, b=30, l=10, r=20),
+            coloraxis_showscale=False,
+            yaxis=dict(autorange="reversed",
+                       tickfont=dict(color="#333333", size=10)),
+            xaxis=dict(tickfont=dict(color="#333333", size=10)),
+        )
+        return fig
+
+    def make_wordcloud(texts):
+        """Return base64 PNG of word cloud."""
+        if not WC_AVAILABLE or not texts:
+            return None
+        combined = " ".join(texts)
+        wc = WordCloud(
+            width=800, height=380,
+            background_color="white",
+            stopwords=STOPWORDS_CUSTOM,
+            colormap="Blues",
+            max_words=80,
+            collocations=True,
+            min_font_size=10,
+        ).generate(combined)
+        buf = io.BytesIO()
+        plt.figure(figsize=(10, 4.5), facecolor="white")
+        plt.imshow(wc, interpolation="bilinear")
+        plt.axis("off")
+        plt.tight_layout(pad=0)
+        plt.savefig(buf, format="png", bbox_inches="tight",
+                    facecolor="white", dpi=130)
+        plt.close()
+        buf.seek(0)
+        return base64.b64encode(buf.read()).decode()
+
+    def sentiment_bar(texts, title):
+        """Simple rule-based sentiment: pos / neutral / neg counts."""
+        POS_WORDS = {
+            "good","great","excellent","amazing","wonderful","helpful",
+            "useful","interesting","informative","enjoyed","liked",
+            "love","fantastic","brilliant","positive","well","better",
+            "clear","confident","understood","understand","safe",
+            "important","learned","knew","inspired","motivated",
+        }
+        NEG_WORDS = {
+            "bad","poor","boring","confusing","difficult","hard",
+            "unhelpful","useless","worse","negative","scared",
+            "worried","uncomfortable","long","short","rushed",
+            "too much","too little","didn't","don't","not",
+            "never","nothing","no","none","unsure","unclear",
+        }
+        pos, neg, neu = 0, 0, 0
+        for t in texts:
+            words = set(t.lower().split())
+            p = len(words & POS_WORDS)
+            n = len(words & NEG_WORDS)
+            if p > n:   pos += 1
+            elif n > p: neg += 1
+            else:       neu += 1
+        total = pos + neg + neu
+        if total == 0:
+            return empty_fig("No data for sentiment")
+        fig = go.Figure(go.Bar(
+            x=["Positive", "Neutral", "Negative"],
+            y=[pos, neu, neg],
+            marker_color=[GREEN, "#F5D78E", RED],
+            text=[f"{v} ({v/total*100:.0f}%)" for v in [pos, neu, neg]],
+            textposition="outside",
+            textfont=dict(color="#333333", size=11),
+            cliponaxis=False,
+        ))
+        fig.update_layout(
+            title=dict(text=title, y=0.97, x=0, xanchor="left",
+                       font=dict(size=13)),
+            plot_bgcolor="#FFFFFF",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#333333", size=11),
+            height=300,
+            margin=dict(t=44, b=40, l=10, r=10),
+            yaxis=dict(title="Responses",
+                       tickfont=dict(color="#333333", size=10)),
+            xaxis=dict(tickfont=dict(color="#333333", size=10)),
+            showlegend=False,
+        )
+        return fig
+
+    # -- The 3 actual free-text columns from the survey CSV -------
+    # text_one_change  : "One thing LMK should change"
+    # text_one_learned : "One thing learned"
+    # text_one_good    : "One thing good/liked about workshop"
+    # All 3 are shown in every sub-tab; the QUESTION_MAP controls
+    # which to emphasise and how to label them.
+    ALL_TEXT_COLS = [c for c in [
+        "text_one_change",
+        "text_one_learned",
+        "text_one_good",
+    ] if c in dfv.columns]
+
+    TEXT_COL_LABELS = {
+        "text_one_change":  "One thing LMK should change",
+        "text_one_learned": "One thing learned",
+        "text_one_good":    "One thing good / liked about workshop",
+    }
+
+    QUESTION_MAP = {
+        "workshop_useful": {
+            "label":       "Workshop Useful",
+            "order":       USEFUL_ORDER,
+            "positive":    POSITIVE_USEFUL,
+            # Lead with "good" (positive signal) + "change" (improvement)
+            "text_cols":   ["text_one_good", "text_one_change", "text_one_learned"],
+            "description": (
+                "What respondents liked about the workshop, what they would change, "
+                "and what they learned — split by those who found it useful vs not."
+            ),
+        },
+        "changed_understanding": {
+            "label":       "Changed Understanding",
+            "order":       AGREE_ORDER,
+            "positive":    POSITIVE_AGREE,
+            # Lead with "learned" — most directly linked to understanding change
+            "text_cols":   ["text_one_learned", "text_one_good", "text_one_change"],
+            "description": (
+                "What respondents said they learned, alongside what they liked "
+                "and what they would change — split by whether understanding changed."
+            ),
+        },
+        "leader_rating": {
+            "label":       "LMK Leader Rating",
+            "order":       RATING_ORDER,
+            "positive":    POSITIVE_RATING,
+            # "good" most directly captures leader praise; "change" captures criticism
+            "text_cols":   ["text_one_good", "text_one_change", "text_one_learned"],
+            "description": (
+                "What respondents liked (positive signal for the leader) and what "
+                "they would change (improvement signal) — split by leader rating."
+            ),
+        },
+        "know_where_to_go": {
+            "label":       "Know Where to Get Help",
+            "order":       AGREE_ORDER,
+            "positive":    POSITIVE_AGREE,
+            # "learned" most relevant to knowing resources
+            "text_cols":   ["text_one_learned", "text_one_good", "text_one_change"],
+            "description": (
+                "What respondents learned about getting help, alongside what "
+                "they liked and would change — split by awareness of support."
+            ),
+        },
+    }
+
+    # -- Build sub-tabs ------------------------------------------
+    st.markdown("### 📝 Word Analysis")
+    st.caption(
+        "Analyses free-text survey responses linked to each outcome question. "
+        "Top words, bigrams, word cloud and sentiment breakdown."
+    )
+
+    wa1, wa2, wa3, wa4 = st.tabs([
+        "🌟 Workshop Useful",
+        "🧠 Changed Understanding",
+        "⭐ LMK Leader Rating",
+        "🆘 Know Where to Get Help",
+    ])
+
+    q_keys  = list(QUESTION_MAP.keys())
+    wa_tabs = [wa1, wa2, wa3, wa4]
+
+    for wa_tab, q_col in zip(wa_tabs, q_keys):
+        cfg = QUESTION_MAP[q_col]
+        with wa_tab:
+            st.markdown(f"#### {cfg['label']}")
+            st.caption(cfg["description"])
+
+            # Collect text from mapped columns (or fall back)
+            text_cols_present = [c for c in cfg["text_cols"] if c in dfv.columns]
+            if not text_cols_present:
+                text_cols_present = ALL_TEXT_COLS
+
+            if not text_cols_present:
+                st.warning("No free-text columns found in the current data. "
+                           "Check that the CSV contains open-text response columns.")
+                continue
+
+            # Merge all text columns into one series
+            raw_texts_all = pd.concat(
+                [dfv[c] for c in text_cols_present], ignore_index=True
+            )
+            texts_all = clean_text_series(raw_texts_all)
+
+            if not texts_all:
+                st.info("No usable text responses found with current filters.")
+                continue
+
+            # Split positive vs negative responders (for split word analysis)
+            if q_col in dfv.columns:
+                pos_mask = dfv[q_col].isin(cfg["positive"])
+                neg_mask = dfv[q_col].notna() & ~pos_mask
+                texts_pos = clean_text_series(
+                    pd.concat([dfv.loc[pos_mask, c]
+                               for c in text_cols_present
+                               if c in dfv.columns], ignore_index=True)
+                )
+                texts_neg = clean_text_series(
+                    pd.concat([dfv.loc[neg_mask, c]
+                               for c in text_cols_present
+                               if c in dfv.columns], ignore_index=True)
+                )
+            else:
+                texts_pos, texts_neg = texts_all, []
+
+            n_responses = len(texts_all)
+            n_pos = len(texts_pos)
+            n_neg = len(texts_neg)
+
+            # KPI strip
+            k1, k2, k3 = st.columns(3)
+            k1.metric("Text responses", f"{n_responses:,}")
+            k2.metric("From positive responders", f"{n_pos:,}")
+            k3.metric("From non-positive responders", f"{n_neg:,}")
+
+            n_top = st.slider(
+                "Number of top words/bigrams to show",
+                5, 30, 15,
+                key=f"n_top_{q_col}"
+            )
+
+            st.markdown("---")
+
+            # ── Row 1: Word cloud + Sentiment ──────────────────
+            r1c1, r1c2 = st.columns([3, 2])
+            with r1c1:
+                cols_used = ", ".join(TEXT_COL_LABELS.get(c, c)
+                                     for c in text_cols_present)
+                st.markdown(f"**Word Cloud** — {cols_used}")
+                if WC_AVAILABLE:
+                    wc_b64 = make_wordcloud(texts_all)
+                    if wc_b64:
+                        st.markdown(
+                            f'<img src="data:image/png;base64,{wc_b64}" style="width:100%;border-radius:8px;border:1px solid rgba(128,128,128,0.2);">',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.info("Not enough text to generate word cloud.")
+                else:
+                    st.info(
+                        "Install `wordcloud` to enable word clouds: "
+                        "`pip install wordcloud matplotlib`"
+                    )
+
+            with r1c2:
+                st.plotly_chart(
+                    sentiment_bar(texts_all,
+                                  "Sentiment of Free-Text Responses"),
+                    use_container_width=True,
+                )
+
+            # ── Row 2: Top words bar ───────────────────────────
+            st.markdown("---")
+            words_all = tokenise(texts_all)
+            word_freq  = Counter(words_all)
+
+            st.plotly_chart(
+                freq_bar(word_freq, n_top,
+                         f"Top {n_top} Words — All Responses",
+                         ACCENT),
+                use_container_width=True,
+            )
+
+            # ── Row 3: Top words split pos vs neg ─────────────
+            col_pw, col_nw = st.columns(2)
+            with col_pw:
+                if texts_pos:
+                    words_pos = tokenise(texts_pos)
+                    st.plotly_chart(
+                        freq_bar(Counter(words_pos),
+                                 min(n_top, 10),
+                                 f"Top Words — Positive Responders (n={n_pos:,})",
+                                 GREEN),
+                        use_container_width=True,
+                    )
+                else:
+                    st.info("No text from positive responders.")
+
+            with col_nw:
+                if texts_neg:
+                    words_neg = tokenise(texts_neg)
+                    st.plotly_chart(
+                        freq_bar(Counter(words_neg),
+                                 min(n_top, 10),
+                                 f"Top Words — Non-Positive Responders (n={n_neg:,})",
+                                 RED),
+                        use_container_width=True,
+                    )
+                else:
+                    st.info("No text from non-positive responders.")
+
+            # ── Row 4: Top bigrams ─────────────────────────────
+            st.markdown("---")
+            st.markdown("**Top Word Pairs (Bigrams) — what concepts appear together**")
+            bg_all  = bigrams(words_all)
+            bg_freq = Counter(bg_all)
+
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                st.plotly_chart(
+                    freq_bar(bg_freq,
+                             min(n_top, 12),
+                             "Top Bigrams — All Responses",
+                             PURPLE),
+                    use_container_width=True,
+                )
+
+            with col_b2:
+                # Unique words to positive vs negative (differential vocabulary)
+                if texts_pos and texts_neg:
+                    w_pos_set = Counter(tokenise(texts_pos))
+                    w_neg_set = Counter(tokenise(texts_neg))
+                    # Words that appear more in positive than negative
+                    diff_pos = Counter({
+                        w: w_pos_set[w] - w_neg_set.get(w, 0)
+                        for w in w_pos_set
+                        if w_pos_set[w] - w_neg_set.get(w, 0) > 0
+                    })
+                    st.plotly_chart(
+                        freq_bar(diff_pos,
+                                 min(n_top, 12),
+                                 f"Words more common among {cfg['label']} positive responders",
+                                 GREEN),
+                        use_container_width=True,
+                    )
+                else:
+                    st.info("Need both positive and non-positive responders "
+                            "to show differential vocabulary.")
+
+            # ── Row 5: Raw response table ──────────────────────
+            st.markdown("---")
+            with st.expander(f"View raw text responses ({n_responses:,} total)", expanded=False):
+                sel_col = st.selectbox(
+                    "Source column",
+                    text_cols_present,
+                    format_func=lambda c: TEXT_COL_LABELS.get(c, c),
+                    key=f"raw_col_{q_col}",
+                )
+                raw_df = dfv[[sel_col]].dropna().copy()
+                raw_df = raw_df[~raw_df[sel_col].str.strip().str.lower().isin(NULL_TEXT)]
+                raw_df.columns = ["Response"]
+                raw_df = raw_df.reset_index(drop=True)
+                st.dataframe(raw_df, use_container_width=True, height=320)
+
 # -------------------------------------------------------------
 # TABS
 # -------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🌟 Workshop Usefulness",
     "🧠 Changed Understanding",
     "⭐ LMK Leader Rating",
     "🆘 Know Where to Get Help",
     "🔎 Pattern Analysis",
+    "📝 Word Analysis",
 ])
 
 with tab1:
@@ -2659,3 +3145,6 @@ with tab4:
 
 with tab5:
     render_pattern_analysis_tab()
+
+with tab6:
+    render_word_analysis_tab()

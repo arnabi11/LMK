@@ -660,27 +660,12 @@ def render_pattern_analysis_tab():
     def _trunc_p(labels, n=20):
         return [str(l)[:n] + ("-" if len(str(l)) > n else "") for l in labels]
 
-    # -- Dynamic interpretation helper -------------------------------------------
-    # Uses inline styles only — no CSS class dependency — so dark/light theme
-    # both work without relying on [data-theme] selector specificity battles.
+    # -- Dynamic interpretation helper (uses CSS class for theme support) ----------
     def interpret(lines):
         """Render exactly 2 auto-generated interpretation lines below a chart."""
         assert len(lines) == 2, "Always pass exactly 2 interpretation lines"
-        # color:inherit follows Streamlit body text (dark in light mode, light in dark)
-        # background uses rgba so it adapts visually to both themes
-        # border-left uses a fixed accent blue visible on both backgrounds
         st.markdown(
-            f'''<div style="
-                color:inherit;
-                background:rgba(74,159,212,0.13);
-                border-left:4px solid #4A9FD4;
-                border-radius:6px;
-                padding:10px 15px;
-                margin:4px 0 14px 0;
-                font-size:0.91rem;
-                line-height:1.6;
-            "><b style="color:inherit;">Interpretation:</b><br>
-            {lines[0]}<br>{lines[1]}</div>''',
+            f'<div class="interp-box"><b>Interpretation:</b><br>{lines[0]}<br>{lines[1]}</div>',
             unsafe_allow_html=True,
         )
 
@@ -986,31 +971,14 @@ def render_pattern_analysis_tab():
                 color="Mean |SHAP|", color_continuous_scale="Blues",
                 text=feat_imp["Mean |SHAP|"].apply(lambda v: f"{v:.3f}"),
             )
-            fig_bar.update_traces(
-                # "inside" keeps text on the solid coloured bar — readable on
-                # any theme because it sits on the bar's own fill colour
-                textposition="inside",
-                insidetextanchor="end",
-                # Dark text on the lighter bars, white on darker bars handled
-                # by Plotly's auto contrast — force dark so all are readable
-                textfont=dict(size=10, color="#111111"),
-                marker_line_width=0,
-                cliponaxis=False,
-            )
+            fig_bar.update_traces(textposition="outside", marker_line_width=0)
             fig_bar.update_layout(
-                # Solid white plot area so bars are always on white —
-                # works in both light and dark Streamlit themes
-                plot_bgcolor="#FFFFFF",
-                paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#333333", size=11),
-                height=max(320, 32*len(feat_imp)+80),
-                margin=dict(t=48, b=40, l=10, r=20),
+                plot_bgcolor="rgba(248,249,252,1)", paper_bgcolor="rgba(0,0,0,0)",
+                height=max(300, 28*len(feat_imp)+60),
+                margin=dict(t=44,b=20,l=10,r=60),
                 coloraxis_showscale=False,
                 yaxis=dict(title=""),
                 xaxis=dict(title="Mean |SHAP value| - more impact"),
-                # yaxis=dict(title="", tickfont=dict(color="#333333", size=10)),
-                # xaxis=dict(title="Mean |SHAP value| (higher = more impact)",
-                #            tickfont=dict(color="#333333", size=10)),
             )
             st.plotly_chart(fig_bar, use_container_width=True)
             _top1 = feat_imp.sort_values("Mean |SHAP|", ascending=False).iloc[0]
@@ -1071,7 +1039,7 @@ def render_pattern_analysis_tab():
             fig_bee.update_layout(
                 title=f"SHAP Beeswarm -- {q_label}",
                 xaxis=dict(title="SHAP value  (- Negative | Positive -)",
-                           zeroline=True, zerolinecolor="#888888", zerolinewidth=1.5),
+                           zeroline=True, zerolinecolor="black", zerolinewidth=1),
                 yaxis=dict(tickvals=list(range(len(feat_order))),
                            ticktext=feat_order, title=""),
                 plot_bgcolor="rgba(248,249,252,1)", paper_bgcolor="rgba(0,0,0,0)",
@@ -1127,7 +1095,7 @@ def render_pattern_analysis_tab():
                     txt = (f"<b>{feat.replace('_',' ').title()}</b> is the #{list(top3['Feature']).index(feat)+1} "
                            f"driver (impact={imp:.3f}). Higher values generally "
                            f"<b>{direction}</b> the chance of a positive response.")
-                st.markdown(f'<div style="color:inherit;background:rgba(74,159,212,0.12);border-left:4px solid #3A7DC0;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">{txt}</div>',
+                st.markdown(f'<div class="insight-box">{txt}</div>',
                             unsafe_allow_html=True)
 
             st.markdown("---")
@@ -1340,14 +1308,14 @@ def render_pattern_analysis_tab():
                 pval   = row["p-value"]
                 sig    = "statistically significant (p<0.05)" if pval < 0.05 else "not statistically significant"
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{row["Feature A"]}</b> and '
+                    f'<div class="strong-box">- <b>{row["Feature A"]}</b> and '
                     f'<b>{row["Feature B"]}</b> have a <b>{row["Strength"].lower()} '
                     f'association</b> (Cramer\'s V = {cv_val:.3f}, {sig}, n={row["n"]:,}). '
                     f'These two features move together -- knowing one helps predict the other.'
                     f'</div>', unsafe_allow_html=True)
         else:
             st.markdown(
-                f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">No pairs above the Cramer\'s V threshold '
+                f'<div class="warn-box">No pairs above the Cramer\'s V threshold '
                 f'of {cramers_thresh}. Try lowering the threshold in the sidebar.</div>',
                 unsafe_allow_html=True)
 
@@ -1449,12 +1417,12 @@ def render_pattern_analysis_tab():
                         f"{'age and geography together significantly shape outcomes for this group' if _range3 >= 15 else 'the combined effect of age and borough is modest for this group - other factors may be stronger drivers'}.",
                     ])
                     st.markdown(
-                        f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>Highest</b>: '
+                        f'<div class="strong-box">- <b>Highest</b>: '
                         f'Age {best["Age"]} / {best["Borough"]} - '
                         f'{best["% Positive"]}% positive (n={int(best["n"])})</div>',
                         unsafe_allow_html=True)
                     st.markdown(
-                        f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">-- <b>Lowest</b>: '
+                        f'<div class="warn-box">-- <b>Lowest</b>: '
                         f'Age {worst["Age"]} / {worst["Borough"]} - '
                         f'{worst["% Positive"]}% positive (n={int(worst["n"])})</div>',
                         unsafe_allow_html=True)
@@ -1655,7 +1623,7 @@ def render_pattern_analysis_tab():
                 st.markdown("**Top 5 feature interactions:**")
                 for _, r in int_top.iterrows():
                     st.markdown(
-                        f'<div style="color:inherit;background:rgba(74,159,212,0.12);border-left:4px solid #3A7DC0;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["Feature A"]}</b> - '
+                        f'<div class="insight-box">- <b>{r["Feature A"]}</b> - '
                         f'<b>{r["Feature B"]}</b> -- interaction strength: '
                         f'<b>{r["Interaction"]:.4f}</b>. '
                         f'These two features jointly affect {q_label_sel} '
@@ -1732,7 +1700,7 @@ def render_pattern_analysis_tab():
         st.markdown("**Overall most impactful features (averaged across all 4 questions):**")
         for feat, imp in top_overall.items():
             st.markdown(
-                f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{feat}</b> -- '
+                f'<div class="strong-box">- <b>{feat}</b> -- '
                 f'avg SHAP impact = {imp:.4f} across all questions</div>',
                 unsafe_allow_html=True)
 
@@ -1978,14 +1946,14 @@ def render_pattern_analysis_tab():
         st.markdown("#### Top positive patterns (columns that co-occur for HIGH scores)")
         for _, r in top_pos.iterrows():
             st.markdown(
-            f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["% Positive"]}% positive</b> '
+            f'<div class="strong-box">- <b>{r["% Positive"]}% positive</b> '
             f'(n={r["n (respondents)"]:,}) when: {r["Rule (column co-occurrence)"]}</div>',
             unsafe_allow_html=True)
 
         st.markdown("#### Top negative patterns (columns that co-occur for LOW scores)")
         for _, r in top_neg.iterrows():
             st.markdown(
-            f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">-- <b>{r["% Positive"]}% positive</b> '
+            f'<div class="warn-box">-- <b>{r["% Positive"]}% positive</b> '
             f'(n={r["n (respondents)"]:,}) when: {r["Rule (column co-occurrence)"]}</div>',
             unsafe_allow_html=True)
 
@@ -2123,7 +2091,7 @@ def render_pattern_analysis_tab():
 
     for _, r in co_pairs_df.head(3).iterrows():
         st.markdown(
-            f'<div style="color:inherit;background:rgba(74,159,212,0.12);border-left:4px solid #3A7DC0;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["Feature A"]}</b> and <b>{r["Feature B"]}</b> jointly account for the most variation in <b>{q_label6}</b> (co-importance = {r["Co-importance"]:.5f}).</div>',
+            f'<div class="insight-box">- <b>{r["Feature A"]}</b> and <b>{r["Feature B"]}</b> jointly account for the most variation in <b>{q_label6}</b> (co-importance = {r["Co-importance"]:.5f}).</div>',
             unsafe_allow_html=True)
 
     # ==============================================================================
@@ -2360,14 +2328,14 @@ def render_pattern_analysis_tab():
             st.markdown("**Common combinations with HIGH positive rate (top-right quadrant):**")
             for _, r in common_pos.sort_values("pos_pct", ascending=False).head(4).iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
+                    f'<div class="strong-box">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
                     unsafe_allow_html=True)
 
         if not common_neg.empty:
             st.markdown("**Common combinations with LOW positive rate (bottom-right quadrant):**")
             for _, r in common_neg.sort_values("pos_pct").head(4).iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
+                    f'<div class="warn-box">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
                     unsafe_allow_html=True)
 
     # ==============================================================================
@@ -2434,7 +2402,7 @@ def render_pattern_analysis_tab():
             y=[str(r)[:25] for r in pivot5.index],
             text=annot.values,
             texttemplate="%{text}",
-            textfont=dict(size=11, color="#111111"),
+            textfont=dict(size=11, color="black"),
             colorscale="RdYlGn",
             zmin=0, zmax=100,
             colorbar=dict(title="% Positive", thickness=14),
@@ -2472,12 +2440,12 @@ def render_pattern_analysis_tab():
             f"{'is substantial - the two features together create meaningfully different outcomes across groups' if _hm5_range >= 20 else 'is moderate - the features have some influence on outcomes but the effect is not dramatic across all combinations'}.",
         ])
         st.markdown(
-            f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+            f'<div class="strong-box">'
             f'Highest: <b>{best5[feat_a5]}</b> + <b>{best5[feat_b5]}</b> '
             f'-- {best5["pct"]:.0f}% positive (n={int(best5["count"])})'
             f'</div>', unsafe_allow_html=True)
         st.markdown(
-            f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+            f'<div class="warn-box">'
             f'Lowest: <b>{worst5[feat_a5]}</b> + <b>{worst5[feat_b5]}</b> '
             f'-- {worst5["pct"]:.0f}% positive (n={int(worst5["count"])})'
             f'</div>', unsafe_allow_html=True)
@@ -2564,7 +2532,7 @@ def render_pattern_analysis_tab():
             st.markdown("**Key HIGH-performing co-occurrences found by ML:**")
             for _, r in high_patterns.iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+                    f'<div class="strong-box">'
                     f'When <b>{r["Feature A"]}</b> = <i>{r["Value A"]}</i> '
                     f'AND <b>{r["Feature B"]}</b> = <i>{r["Value B"]}</i>: '
                     f'<b>{r["% Positive"]:.0f}% positive response</b> '
@@ -2575,7 +2543,7 @@ def render_pattern_analysis_tab():
             st.markdown("**Key LOW-performing co-occurrences found by ML:**")
             for _, r in low_patterns.sort_values("% Positive").iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+                    f'<div class="warn-box">'
                     f'When <b>{r["Feature A"]}</b> = <i>{r["Value A"]}</i> '
                     f'AND <b>{r["Feature B"]}</b> = <i>{r["Value B"]}</i>: '
                     f'only <b>{r["% Positive"]:.0f}% positive response</b> '

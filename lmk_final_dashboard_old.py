@@ -1,5 +1,5 @@
 """
-LMK Impact Dashboard - Streamlit version
+LMK Impact Dashboard – Streamlit version
 Run:  streamlit run lmk_dashboard.py
 """
 
@@ -22,7 +22,7 @@ from plotly.subplots import make_subplots
 from scipy import stats
 import shap
 
-# -- Page config -----------------------------------------------
+# ── Page config ───────────────────────────────────────────────
 st.set_page_config(
     page_title="LMK Impact Dashboard",
     page_icon="📊",
@@ -31,91 +31,47 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-/* -- Sidebar: always dark navy ------------------------------- */
-[data-testid="stSidebar"] { background-color: #1E2A3A !important; }
+[data-testid="stSidebar"] { background-color: #1E2A3A; }
 [data-testid="stSidebar"] * { color: #E8EDF2 !important; }
 [data-testid="stSidebar"] .stMultiSelect label,
-[data-testid="stSidebar"] .stSelectbox label { color: #A8C4DC !important; font-weight:600; }
-[data-testid="stSidebar"] hr { border-color:#3a506b; }
-
-/* -- Main content: explicit font colour for both themes ------ */
-.block-container { padding-top:1.5rem; }
-.main .block-container { color:#1a1a1a; }
-[data-theme="dark"] .main .block-container { color:#e8edf2; }
-
-/* -- Insight / warn / strong boxes: light mode defaults ------ */
-.insight-box {
-    background:#EAF4FB; border-left:4px solid #3A7DC0;
-    color:#1A3A55 !important;
-    padding:10px 16px; border-radius:7px; margin:6px 0;
-    font-size:clamp(0.78rem,2vw,0.92rem); line-height:1.55;
-}
-.warn-box {
-    background:#FFF8E6; border-left:4px solid #E09B00;
-    color:#5A3E00 !important;
-    padding:10px 16px; border-radius:7px; margin:6px 0;
-    font-size:clamp(0.78rem,2vw,0.92rem); line-height:1.55;
-}
-.strong-box {
-    background:#E8F5EC; border-left:4px solid #2E9E52;
-    color:#1A4A28 !important;
-    padding:10px 16px; border-radius:7px; margin:6px 0;
-    font-size:clamp(0.78rem,2vw,0.92rem); line-height:1.55;
-}
-
-/* -- Dark-mode overrides: high-specificity selectors ---------- */
-/* Streamlit sets data-theme on <html>; chain selectors to beat */
-/* its own injected stylesheet specificity                       */
-[data-theme="dark"] .insight-box,
-html[data-theme="dark"] .insight-box,
-:root[data-theme="dark"] .insight-box {
-    background:#1C3248 !important;
-    border-left:4px solid #5BA8E0 !important;
-    color:#B8D8F5 !important;
-}
-[data-theme="dark"] .warn-box,
-html[data-theme="dark"] .warn-box,
-:root[data-theme="dark"] .warn-box {
-    background:#3A2E10 !important;
-    border-left:4px solid #E0B040 !important;
-    color:#F0D080 !important;
-}
-[data-theme="dark"] .strong-box,
-html[data-theme="dark"] .strong-box,
-:root[data-theme="dark"] .strong-box {
-    background:#1A3828 !important;
-    border-left:4px solid #40C070 !important;
-    color:#80E0A8 !important;
-}
-
-/* -- Interpretation box (light + dark) ------------------------ */
-.interp-box {
-    background:rgba(74,159,212,0.10);
-    border-left:3px solid #4A9FD4;
-    color:#1a3a55 !important;
-    border-radius:6px; padding:9px 14px; margin:4px 0 14px 0;
-    font-size:clamp(0.78rem,2vw,0.91rem); line-height:1.55;
-}
-[data-theme="dark"] .interp-box,
-html[data-theme="dark"] .interp-box,
-:root[data-theme="dark"] .interp-box {
-    background:rgba(74,159,212,0.22) !important;
-    border-left:3px solid #5BA8E0 !important;
-    color:#c8e4f8 !important;
-}
-
-/* -- Responsive layout ---------------------------------------- */
-@media (max-width:768px) {
-    .block-container { padding-left:0.5rem !important; padding-right:0.5rem !important; }
-    .stPlotlyChart { overflow-x:auto !important; }
-}
-@media (max-width:1024px) {
-    .block-container { padding-left:1rem !important; padding-right:1rem !important; }
-}
+[data-testid="stSidebar"] .stSelectbox label { color: #A8C4DC !important; font-weight: 600; }
+[data-testid="stSidebar"] hr { border-color: #3a506b; }
+.block-container { padding-top: 1.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
-# -- Colour palette --------------------------------------------
+st.markdown("""
+<style>
+/* -- Pattern Analysis tab: interpretation / insight boxes -- */
+@media (prefers-color-scheme: light) {
+    .insight-box  { background:#EAF4FB; border-left:4px solid #3A7DC0;
+                    color:#1A3A55; padding:10px 16px; border-radius:7px;
+                    margin:6px 0; font-size:.92rem; }
+    .warn-box     { background:#FFF8E6; border-left:4px solid #E09B00;
+                    color:#5A3E00; padding:10px 16px; border-radius:7px;
+                    margin:6px 0; font-size:.92rem; }
+    .strong-box   { background:#E8F5EC; border-left:4px solid #2E9E52;
+                    color:#1A4A28; padding:10px 16px; border-radius:7px;
+                    margin:6px 0; font-size:.92rem; }
+}
+@media (prefers-color-scheme: dark) {
+    .insight-box  { background:#1C3248; border-left:4px solid #5BA8E0;
+                    color:#B8D8F5; padding:10px 16px; border-radius:7px;
+                    margin:6px 0; font-size:.92rem; }
+    .warn-box     { background:#3A2E10; border-left:4px solid #E0B040;
+                    color:#F0D080; padding:10px 16px; border-radius:7px;
+                    margin:6px 0; font-size:.92rem; }
+    .strong-box   { background:#1A3828; border-left:4px solid #40C070;
+                    color:#80E0A8; padding:10px 16px; border-radius:7px;
+                    margin:6px 0; font-size:.92rem; }
+}
+[data-theme="dark"] .insight-box  { background:#1C3248; border-left:4px solid #5BA8E0; color:#B8D8F5; }
+[data-theme="dark"] .warn-box     { background:#3A2E10; border-left:4px solid #E0B040; color:#F0D080; }
+[data-theme="dark"] .strong-box   { background:#1A3828; border-left:4px solid #40C070; color:#80E0A8; }
+</style>
+""", unsafe_allow_html=True)
+
+# ── Colour palette ────────────────────────────────────────────
 ACCENT  = "#5B8DB8"
 GREEN   = "#6BAE95"
 ORANGE  = "#E8A87C"
@@ -137,10 +93,10 @@ AGREE_COLORS    = [GREEN, "#A8D5C2", "#F5D78E", ORANGE, RED]
 RATING_COLORS   = [GREEN, "#A8D5C2", "#F5D78E", ORANGE, RED]
 
 
-# -- Load & cache data -----------------------------------------
+# ── Load & cache data ─────────────────────────────────────────
 @st.cache_data
 def load_data():
-    # -- UPDATE THESE PATHS to point at your CSVs --------------
+    # ── UPDATE THESE PATHS to point at your CSVs ──────────────
     df_s = pd.read_csv("Sessions 23-24 and 24-25.csv")
     df_v = pd.read_csv("Impact surveys 23-24 and 24-25.csv")
 
@@ -164,7 +120,7 @@ def load_data():
         "Vulnerable group":                                                "vulnerable_group",
     })
 
-    # Survey renames - exact column names from the real CSV
+    # Survey renames — exact column names from the real CSV
     rename_map = {
         "Session Record ID":   "session_id",
         "Session Name":        "session_name",
@@ -211,7 +167,7 @@ def load_data():
 df_sessions_raw, df_survey_raw = load_data()
 
 
-# -- Merge session metadata onto survey rows -------------------
+# ── Merge session metadata onto survey rows ───────────────────
 def enrich(dfs, dfv):
     meta = dfs[["record_id", "vulnerable_group", "pct_school_meals", "module"]].copy()
     meta = meta.rename(columns={"record_id": "session_id",
@@ -219,35 +175,14 @@ def enrich(dfs, dfv):
     return dfv.merge(meta, on="session_id", how="left", suffixes=("", "_sess"))
 
 
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 # CHART HELPERS
-# -------------------------------------------------------------
-# -- Theme-safe chart defaults ----------------------------------
-# plot_bgcolor: very light grey - visible on white AND dark canvas
-# paper_bgcolor: transparent so it inherits the page background
-# font color #333 is readable on light; charts also get template
+# ─────────────────────────────────────────────────────────────
 BASE_LAYOUT = dict(
-    plot_bgcolor="rgba(248,249,252,1)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    margin=dict(t=48, b=44, l=10, r=10),
-    height=340,
-    font=dict(size=11, color="#333333"),
-    autosize=True,
+    plot_bgcolor="white", paper_bgcolor="white",
+    margin=dict(t=44, b=20, l=10, r=10),
+    height=340, font=dict(size=12),
 )
-
-def _trunc(labels, n=20):
-    """Truncate long tick labels to avoid overlap."""
-    return [str(l)[:n] + ("..." if len(str(l)) > n else "") for l in labels]
-
-def _layout(**kw):
-    """Return BASE_LAYOUT merged with kw — no duplicate keyword errors."""
-    out = dict(BASE_LAYOUT)
-    out.update(kw)
-    return out
-
-def _trunc(labels, n=20):
-    """Truncate long tick labels so they don't overlap."""
-    return [str(l)[:n] + ("-" if len(str(l)) > n else "") for l in labels]
 
 
 def pct_positive(series, positive_set):
@@ -264,37 +199,14 @@ def donut_chart(series, order, colors, title):
     values = [counts[r] for r in labels]
     if not labels:
         return empty_fig("No responses recorded")
-    short_labels = _trunc(labels, 18)
-    total = sum(values)
-    # Build per-slice text: show percent only when slice >= 4% of total
-    # Tiny slices get empty string to avoid unreadable floating labels
-    slice_texts = [
-        f"{v/total*100:.1f}%" if total > 0 and v/total >= 0.04 else ""
-        for v in values
-    ]
     fig = go.Figure(go.Pie(
-        labels=short_labels,
-        values=values,
+        labels=labels, values=values,
         hole=0.50,
         marker_colors=colors[:len(labels)],
-        text=slice_texts,
-        textinfo="text",            # use our custom per-slice text
-        textposition="inside",      # always inside — never floating outside
-        insidetextorientation="horizontal",
-        hovertemplate="%{label}: %{value} (%{percent})<extra></extra>",
+        textinfo="percent+label",
         sort=False,
     ))
-    fig.update_layout(**_layout(
-        title=title,
-        showlegend=True,
-        legend=dict(
-            orientation="v",
-            font=dict(size=9),
-            yanchor="middle", y=0.5,
-            xanchor="left", x=1.01,
-        ),
-        margin=dict(t=60, b=20, l=10, r=140),
-    ))
+    fig.update_layout(**BASE_LAYOUT, title=title, showlegend=False)
     return fig
 
 
@@ -328,24 +240,15 @@ def stacked_bar(dfv, col, group_col, order, colors, title):
             insidetextanchor="middle",
         ))
 
-    # Truncate long x-axis category names
-    unique_groups = ct[group_col].unique().tolist()
-    tick_text = _trunc(unique_groups, 18)
-    fig.update_layout(**_layout(
-        title=dict(text=title, y=0.97, x=0, xanchor="left", font=dict(size=13)),
+    fig.update_layout(
+        **BASE_LAYOUT,
+        title=title,
         barmode="stack",
-        yaxis=dict(title="%", range=[0, 100], tickfont=dict(size=10)),
-        xaxis=dict(title="", tickangle=-35, tickfont=dict(size=9),
-                   tickmode="array", tickvals=unique_groups, ticktext=tick_text),
-        legend=dict(
-            orientation="h",
-            yanchor="top", y=-0.22,   # below x-axis, away from title
-            xanchor="center", x=0.5,
-            font=dict(size=9),
-            traceorder="normal",
-        ),
-        margin=dict(t=44, b=110, l=10, r=10),  # extra bottom for legend
-    ))
+        yaxis=dict(title="%", range=[0, 100]),
+        xaxis=dict(title="", tickangle=-20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1, font=dict(size=10)),
+    )
     return fig
 
 
@@ -364,28 +267,12 @@ def pct_positive_bar(dfv, col, group_col, positive_set, color, title):
     agg["n"] = sub.groupby(group_col).size().values
     agg = agg.sort_values("% Positive", ascending=True)
 
-    agg["label"] = agg.apply(lambda r: f"{r['% Positive']}%", axis=1)
-    agg["ylabel"] = _trunc(agg[group_col].tolist(), 22)
-    fig = px.bar(agg, x="% Positive", y="ylabel", orientation="h",
+    fig = px.bar(agg, x="% Positive", y=group_col, orientation="h",
                  title=title, color_discrete_sequence=[color],
-                 range_x=[0, 115],
-                 text="label",
-                 hover_data={group_col: True, "n": True,
-                             "ylabel": False, "label": False})
-    fig.update_traces(
-        textposition="outside",
-        textfont=dict(size=9),
-        marker_line_width=0,
-        cliponaxis=False,
-    )
-    fig.update_layout(**_layout(
-        title=dict(y=0.97, x=0, xanchor="left", font=dict(size=13)),
-        xaxis_title="% Positive Response",
-        yaxis_title="",
-        yaxis=dict(tickfont=dict(size=9)),
-        xaxis=dict(tickfont=dict(size=10)),
-        margin=dict(t=44, b=44, l=10, r=80),
-    ))
+                 range_x=[0, 105],
+                 text=agg.apply(lambda r: f"{r['% Positive']}% (n={r['n']})", axis=1))
+    fig.update_traces(textposition="outside", marker_line_width=0)
+    fig.update_layout(**BASE_LAYOUT, xaxis_title="% Positive Response", yaxis_title="")
     return fig
 
 
@@ -404,7 +291,7 @@ def fsm_bar(dfs, dfv, col, positive_set, color, title):
         return empty_fig("No FSM data linked to these responses")
 
     bins   = [0, 20, 40, 60, 80, 101]
-    labels = ["0-20%", "21-40%", "41-60%", "61-80%", "81-100%"]
+    labels = ["0–20%", "21–40%", "41–60%", "61–80%", "81–100%"]
     dfv2["fsm_bucket"] = pd.cut(dfv2["_fsm"], bins=bins, labels=labels, right=False)
     return pct_positive_bar(dfv2, col, "fsm_bucket", positive_set, color, title)
 
@@ -413,14 +300,14 @@ def empty_fig(msg="No data available"):
     fig = go.Figure()
     fig.add_annotation(text=msg, xref="paper", yref="paper",
                        x=0.5, y=0.5, showarrow=False,
-                       font=dict(size=13, color="#888888"))
+                       font=dict(size=13, color="#aaa"))
     fig.update_layout(**BASE_LAYOUT)
     return fig
 
 
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 # SIDEBAR
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 📊 LMK Dashboard")
     st.markdown("---")
@@ -466,60 +353,35 @@ with st.sidebar:
         st.rerun()
 
 
-# -------------------------------------------------------------
-# APPLY FILTERS  (cached so repeated identical selections
-#                 return instantly without recomputing)
-# -------------------------------------------------------------
-@st.cache_data(show_spinner=False)
-def apply_filters(
-    boroughs, years, modules, orgtypes, vgroups, fsm_range,
-    genders, ethnicities, ages, disabilities, sexualities, nds,
-):
-    """All heavy pandas work done once per unique filter combination."""
-    dfs = df_sessions_raw.copy()
-    if boroughs:  dfs = dfs[dfs["borough"].isin(boroughs)]
-    if years:     dfs = dfs[dfs["academic_year"].isin(years)]
-    if modules:   dfs = dfs[dfs["module"].isin(modules)]
-    if orgtypes and "org_type" in dfs.columns:
-        dfs = dfs[dfs["org_type"].isin(orgtypes)]
-    if vgroups and "vulnerable_group" in dfs.columns:
-        dfs = dfs[dfs["vulnerable_group"].isin(vgroups)]
-    if fsm_range is not None and "pct_school_meals" in dfs.columns:
-        _fsm = pd.to_numeric(dfs["pct_school_meals"], errors="coerce")
-        dfs = dfs[_fsm.between(fsm_range[0], fsm_range[1]) | _fsm.isna()]
+# ─────────────────────────────────────────────────────────────
+# APPLY FILTERS
+# ─────────────────────────────────────────────────────────────
+dfs = df_sessions_raw.copy()
+if sel_borough: dfs = dfs[dfs["borough"].isin(sel_borough)]
+if sel_year:    dfs = dfs[dfs["academic_year"].isin(sel_year)]
+if sel_module:  dfs = dfs[dfs["module"].isin(sel_module)]
+if sel_orgtype and "org_type" in dfs.columns:
+    dfs = dfs[dfs["org_type"].isin(sel_orgtype)]
+if sel_vgroup and "vulnerable_group" in dfs.columns:
+    dfs = dfs[dfs["vulnerable_group"].isin(sel_vgroup)]
+if sel_fsm is not None and "pct_school_meals" in dfs.columns:
+    dfs["_fsm_n"] = pd.to_numeric(dfs["pct_school_meals"], errors="coerce")
+    dfs = dfs[dfs["_fsm_n"].between(sel_fsm[0], sel_fsm[1]) | dfs["_fsm_n"].isna()]
 
-    dfv = df_survey_raw[df_survey_raw["session_id"].isin(dfs["record_id"])].copy()
-    dfv = enrich(dfs, dfv)
+dfv = df_survey_raw[df_survey_raw["session_id"].isin(dfs["record_id"])].copy()
+dfv = enrich(dfs, dfv)
 
-    if genders      and "gender"        in dfv.columns: dfv = dfv[dfv["gender"].isin(genders)]
-    if ethnicities  and "ethnicity"     in dfv.columns: dfv = dfv[dfv["ethnicity"].isin(ethnicities)]
-    if ages         and "age"           in dfv.columns: dfv = dfv[dfv["age"].isin(ages)]
-    if disabilities and "disability"    in dfv.columns: dfv = dfv[dfv["disability"].isin(disabilities)]
-    if sexualities  and "sexuality"     in dfv.columns: dfv = dfv[dfv["sexuality"].isin(sexualities)]
-    if nds          and "neurodivergent" in dfv.columns: dfv = dfv[dfv["neurodivergent"].isin(nds)]
-
-    return dfs, dfv
-
-# Hashable tuples for cache key (lists are not hashable)
-dfs, dfv = apply_filters(
-    tuple(sel_borough),
-    tuple(sel_year),
-    tuple(sel_module),
-    tuple(sel_orgtype),
-    tuple(sel_vgroup),
-    tuple(sel_fsm) if sel_fsm is not None else None,
-    tuple(sel_gender),
-    tuple(sel_ethnicity),
-    tuple(sel_age),
-    tuple(sel_disability),
-    tuple(sel_sexuality),
-    tuple(sel_nd),
-)
+if sel_gender     and "gender"        in dfv.columns: dfv = dfv[dfv["gender"].isin(sel_gender)]
+if sel_ethnicity  and "ethnicity"     in dfv.columns: dfv = dfv[dfv["ethnicity"].isin(sel_ethnicity)]
+if sel_age        and "age"           in dfv.columns: dfv = dfv[dfv["age"].isin(sel_age)]
+if sel_disability and "disability"    in dfv.columns: dfv = dfv[dfv["disability"].isin(sel_disability)]
+if sel_sexuality  and "sexuality"     in dfv.columns: dfv = dfv[dfv["sexuality"].isin(sel_sexuality)]
+if sel_nd         and "neurodivergent" in dfv.columns: dfv = dfv[dfv["neurodivergent"].isin(sel_nd)]
 
 
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 # HEADER
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 st.markdown("# 📊 LMK Impact Dashboard")
 
 k1, k2, k3, k4 = st.columns(4)
@@ -539,9 +401,9 @@ with k4:
 st.markdown("---")
 
 
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 # REUSABLE TAB BODY
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 def render_tab(col, q_title, order, positive_set, colors, pos_label, note=None):
     st.subheader(q_title)
     if note:
@@ -565,7 +427,7 @@ def render_tab(col, q_title, order, positive_set, colors, pos_label, note=None):
 
     st.markdown("---")
 
-    # Row 1 - Overall donut | by Gender (stacked)
+    # Row 1 — Overall donut | by Gender (stacked)
     c1, c2 = st.columns(2)
     with c1:
         st.plotly_chart(
@@ -576,7 +438,7 @@ def render_tab(col, q_title, order, positive_set, colors, pos_label, note=None):
             stacked_bar(dfv, col, "gender", order, colors, "Response by Gender"),
             use_container_width=True)
 
-    # Row 2 - % positive by Ethnicity | by Age (stacked)
+    # Row 2 — % positive by Ethnicity | by Age (stacked)
     c3, c4 = st.columns(2)
     with c3:
         st.plotly_chart(
@@ -588,7 +450,7 @@ def render_tab(col, q_title, order, positive_set, colors, pos_label, note=None):
             stacked_bar(dfv, col, "age", order, colors, "Response by Age"),
             use_container_width=True)
 
-    # Row 3 - Disability | Neurodivergent / Learning Difficulty
+    # Row 3 — Disability | Neurodivergent / Learning Difficulty
     c5, c6 = st.columns(2)
     with c5:
         st.plotly_chart(
@@ -601,7 +463,7 @@ def render_tab(col, q_title, order, positive_set, colors, pos_label, note=None):
                         "Response by Neurodivergent / Learning Difficulty"),
             use_container_width=True)
 
-    # Row 4 - Sexuality | Vulnerable group
+    # Row 4 — Sexuality | Vulnerable group
     c7, c8 = st.columns(2)
     with c7:
         st.plotly_chart(
@@ -615,16 +477,16 @@ def render_tab(col, q_title, order, positive_set, colors, pos_label, note=None):
                         "Response by Vulnerable / Not Vulnerable Group"),
             use_container_width=True)
 
-    # Row 5 - % Free School Meals (full width)
+    # Row 5 — % Free School Meals (full width)
     st.plotly_chart(
         fsm_bar(dfs, dfv, col, positive_set, GREEN,
                 "% Positive by Free School Meals Eligibility (session-level)"),
         use_container_width=True)
 
 
-# ---------------------------------------------------------------
+# ───────────────────────────────────────────────────────────────
 # PATTERN ANALYSIS TAB  (SHAP + ML pattern discovery)
-# ---------------------------------------------------------------
+# ───────────────────────────────────────────────────────────────
 def render_pattern_analysis_tab():
     """Self-contained SHAP / pattern-discovery analysis (Parts 1-6).
     Loads and filters its own copy of the data via the widgets this
@@ -643,44 +505,36 @@ def render_pattern_analysis_tab():
     CHART_BG   = "rgba(0,0,0,0)"   # transparent - inherits page bg
     CHART_TEXT = "#555555"          # neutral grey - readable on both themes
 
+    # Plotly template: "plotly_white" for light, "plotly_dark" available via sidebar toggle
     def chart_layout(height=340, extra=None):
-        """Theme-safe Plotly layout: transparent bg, neutral font, responsive."""
         base = dict(
-            plot_bgcolor="rgba(248,249,252,1)",
+            plot_bgcolor="rgba(245,248,252,1)",
             paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#333333", size=11),
-            margin=dict(t=48, b=48, l=10, r=10),
+            font=dict(color="#444444", size=12),
+            margin=dict(t=44, b=20, l=10, r=10),
             height=height,
-            autosize=True,
         )
         if extra:
             base.update(extra)
         return base
 
-    def _trunc_p(labels, n=20):
-        return [str(l)[:n] + ("-" if len(str(l)) > n else "") for l in labels]
 
-    # -- Dynamic interpretation helper -------------------------------------------
-    # Uses inline styles only — no CSS class dependency — so dark/light theme
-    # both work without relying on [data-theme] selector specificity battles.
+    # -- Dynamic interpretation helper ---------------------------------------------
     def interpret(lines):
         """Render exactly 2 auto-generated interpretation lines below a chart."""
         assert len(lines) == 2, "Always pass exactly 2 interpretation lines"
-        # color:inherit follows Streamlit body text (dark in light mode, light in dark)
-        # background uses rgba so it adapts visually to both themes
-        # border-left uses a fixed accent blue visible on both backgrounds
         st.markdown(
-            f'''<div style="
-                color:inherit;
-                background:rgba(74,159,212,0.13);
-                border-left:4px solid #4A9FD4;
-                border-radius:6px;
-                padding:10px 15px;
-                margin:4px 0 14px 0;
-                font-size:0.91rem;
-                line-height:1.6;
-            "><b style="color:inherit;">Interpretation:</b><br>
-            {lines[0]}<br>{lines[1]}</div>''',
+            f'''<div style="background:rgba(90,140,184,0.10);
+                           border-left:3px solid #4A9FD4;
+                           border-radius:6px;
+                           padding:9px 14px;
+                           margin:4px 0 14px 0;
+                           font-size:0.91rem;
+                           line-height:1.55;">
+            <b>Interpretation:</b><br>
+            {lines[0]}<br>
+            {lines[1]}
+            </div>''',
             unsafe_allow_html=True,
         )
 
@@ -795,23 +649,11 @@ def render_pattern_analysis_tab():
                 st.session_state[k] = []
             st.rerun()
 
-    # -- Filter (cached per unique filter combo for <1s repeats) -------------------
-    @st.cache_data(show_spinner=False)
-    def _apply_pat_filter(df_json, modules, years, boroughs):
-        import io
-        df = pd.read_json(io.StringIO(df_json))
-        if modules:  df = df[df["module"].isin(list(modules))]
-        if years:    df = df[df["academic_year"].isin(list(years))]
-        if boroughs: df = df[df["borough"].isin(list(boroughs))]
-        return df
-
-    _df_raw_json = df_raw.to_json()
-    df = _apply_pat_filter(
-        _df_raw_json,
-        tuple(sel_module),
-        tuple(sel_year),
-        tuple(sel_borough),
-    )
+    # -- Filter ---------------------------------------------------------------------
+    df = df_raw.copy()
+    if sel_module:  df = df[df["module"].isin(sel_module)]
+    if sel_year:    df = df[df["academic_year"].isin(sel_year)]
+    if sel_borough: df = df[df["borough"].isin(sel_borough)]
 
     # -- Feature matrix builder -----------------------------------------------------
     @st.cache_data
@@ -986,31 +828,14 @@ def render_pattern_analysis_tab():
                 color="Mean |SHAP|", color_continuous_scale="Blues",
                 text=feat_imp["Mean |SHAP|"].apply(lambda v: f"{v:.3f}"),
             )
-            fig_bar.update_traces(
-                # "inside" keeps text on the solid coloured bar — readable on
-                # any theme because it sits on the bar's own fill colour
-                textposition="inside",
-                insidetextanchor="end",
-                # Dark text on the lighter bars, white on darker bars handled
-                # by Plotly's auto contrast — force dark so all are readable
-                textfont=dict(size=10, color="#111111"),
-                marker_line_width=0,
-                cliponaxis=False,
-            )
+            fig_bar.update_traces(textposition="outside", marker_line_width=0)
             fig_bar.update_layout(
-                # Solid white plot area so bars are always on white —
-                # works in both light and dark Streamlit themes
-                plot_bgcolor="#FFFFFF",
-                paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#333333", size=11),
-                height=max(320, 32*len(feat_imp)+80),
-                margin=dict(t=48, b=40, l=10, r=20),
+                plot_bgcolor="rgba(245,248,252,1)", paper_bgcolor="rgba(0,0,0,0)",
+                height=max(300, 28*len(feat_imp)+60),
+                margin=dict(t=44,b=20,l=10,r=60),
                 coloraxis_showscale=False,
                 yaxis=dict(title=""),
                 xaxis=dict(title="Mean |SHAP value| - more impact"),
-                # yaxis=dict(title="", tickfont=dict(color="#333333", size=10)),
-                # xaxis=dict(title="Mean |SHAP value| (higher = more impact)",
-                #            tickfont=dict(color="#333333", size=10)),
             )
             st.plotly_chart(fig_bar, use_container_width=True)
             _top1 = feat_imp.sort_values("Mean |SHAP|", ascending=False).iloc[0]
@@ -1071,10 +896,10 @@ def render_pattern_analysis_tab():
             fig_bee.update_layout(
                 title=f"SHAP Beeswarm -- {q_label}",
                 xaxis=dict(title="SHAP value  (- Negative | Positive -)",
-                           zeroline=True, zerolinecolor="#888888", zerolinewidth=1.5),
+                           zeroline=True, zerolinecolor="black", zerolinewidth=1),
                 yaxis=dict(tickvals=list(range(len(feat_order))),
                            ticktext=feat_order, title=""),
-                plot_bgcolor="rgba(248,249,252,1)", paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(245,248,252,1)", paper_bgcolor="rgba(0,0,0,0)",
                 height=max(350, 30*len(feat_order)+60),
                 margin=dict(t=44, b=20, l=10, r=20),
                 showlegend=False,
@@ -1127,7 +952,7 @@ def render_pattern_analysis_tab():
                     txt = (f"<b>{feat.replace('_',' ').title()}</b> is the #{list(top3['Feature']).index(feat)+1} "
                            f"driver (impact={imp:.3f}). Higher values generally "
                            f"<b>{direction}</b> the chance of a positive response.")
-                st.markdown(f'<div style="color:inherit;background:rgba(74,159,212,0.12);border-left:4px solid #3A7DC0;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">{txt}</div>',
+                st.markdown(f'<div class="insight-box">{txt}</div>',
                             unsafe_allow_html=True)
 
             st.markdown("---")
@@ -1169,7 +994,7 @@ def render_pattern_analysis_tab():
                         title=f"Dependence: {feat.replace('_',' ').title()}",
                         xaxis_title=feat.replace("_"," ").title(),
                         yaxis_title="SHAP value",
-                        plot_bgcolor="rgba(248,249,252,1)",
+                        plot_bgcolor="rgba(245,248,252,1)",
                         paper_bgcolor="rgba(0,0,0,0)",
                         font=dict(color="#444444"),
                         height=300,
@@ -1283,13 +1108,9 @@ def render_pattern_analysis_tab():
         )
         fig_heat.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#333333", size=10),
-            autosize=True,
-            height=max(420, 42*len(feat_labels)+80),
-            margin=dict(t=60, b=70, l=10, r=10),
-            coloraxis_colorbar=dict(title="Cramer's V", tickfont=dict(size=9)),
-            xaxis=dict(tickangle=-40, tickfont=dict(size=9)),
-            yaxis=dict(tickfont=dict(size=9)),
+            height=max(400, 40*len(feat_labels)+80),
+            margin=dict(t=60,b=20,l=10,r=10),
+            coloraxis_colorbar=dict(title="Cramer's V"),
         )
         st.plotly_chart(fig_heat, use_container_width=True)
         _cv_max_row = pair_df.iloc[0]
@@ -1340,14 +1161,14 @@ def render_pattern_analysis_tab():
                 pval   = row["p-value"]
                 sig    = "statistically significant (p<0.05)" if pval < 0.05 else "not statistically significant"
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{row["Feature A"]}</b> and '
+                    f'<div class="strong-box">- <b>{row["Feature A"]}</b> and '
                     f'<b>{row["Feature B"]}</b> have a <b>{row["Strength"].lower()} '
                     f'association</b> (Cramer\'s V = {cv_val:.3f}, {sig}, n={row["n"]:,}). '
                     f'These two features move together -- knowing one helps predict the other.'
                     f'</div>', unsafe_allow_html=True)
         else:
             st.markdown(
-                f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">No pairs above the Cramer\'s V threshold '
+                f'<div class="warn-box">No pairs above the Cramer\'s V threshold '
                 f'of {cramers_thresh}. Try lowering the threshold in the sidebar.</div>',
                 unsafe_allow_html=True)
 
@@ -1422,15 +1243,9 @@ def render_pattern_analysis_tab():
                         aspect="auto",
                         labels=dict(color="% Positive"),
                     )
-                    fig_3.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        font=dict(color="#333333", size=10),
-                        autosize=True,
-                        height=max(280, 54*len(pivot)+100),
-                        margin=dict(t=50, b=80, l=10, r=10),
-                        xaxis=dict(tickangle=-40, tickfont=dict(size=9)),
-                        yaxis=dict(tickfont=dict(size=9)),
-                    )
+                    fig_3.update_layout(paper_bgcolor="rgba(0,0,0,0)",
+                                        height=max(250, 50*len(pivot)+100),
+                                        margin=dict(t=50, b=20))
                     st.plotly_chart(fig_3, use_container_width=True)
 
                     # Best and worst cells
@@ -1449,12 +1264,12 @@ def render_pattern_analysis_tab():
                         f"{'age and geography together significantly shape outcomes for this group' if _range3 >= 15 else 'the combined effect of age and borough is modest for this group - other factors may be stronger drivers'}.",
                     ])
                     st.markdown(
-                        f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>Highest</b>: '
+                        f'<div class="strong-box">- <b>Highest</b>: '
                         f'Age {best["Age"]} / {best["Borough"]} - '
                         f'{best["% Positive"]}% positive (n={int(best["n"])})</div>',
                         unsafe_allow_html=True)
                     st.markdown(
-                        f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">-- <b>Lowest</b>: '
+                        f'<div class="warn-box">-- <b>Lowest</b>: '
                         f'Age {worst["Age"]} / {worst["Borough"]} - '
                         f'{worst["% Positive"]}% positive (n={int(worst["n"])})</div>',
                         unsafe_allow_html=True)
@@ -1528,12 +1343,8 @@ def render_pattern_analysis_tab():
         )
         fig_pair.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#333333", size=10),
-            autosize=True,
-            height=max(280, 46*len(pivot_p)+100),
-            margin=dict(t=50, b=80, l=10, r=10),
-            xaxis=dict(tickangle=-40, tickfont=dict(size=9)),
-            yaxis=dict(tickfont=dict(size=9)),
+            height=max(250, 40*len(pivot_p)+100),
+            margin=dict(t=50,b=20,l=10,r=10),
         )
         st.plotly_chart(fig_pair, use_container_width=True)
         _pair_best  = agg_p.loc[agg_p["pct"].idxmax()]
@@ -1655,7 +1466,7 @@ def render_pattern_analysis_tab():
                 st.markdown("**Top 5 feature interactions:**")
                 for _, r in int_top.iterrows():
                     st.markdown(
-                        f'<div style="color:inherit;background:rgba(74,159,212,0.12);border-left:4px solid #3A7DC0;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["Feature A"]}</b> - '
+                        f'<div class="insight-box">- <b>{r["Feature A"]}</b> - '
                         f'<b>{r["Feature B"]}</b> -- interaction strength: '
                         f'<b>{r["Interaction"]:.4f}</b>. '
                         f'These two features jointly affect {q_label_sel} '
@@ -1698,14 +1509,12 @@ def render_pattern_analysis_tab():
             height=max(400, 35*summary_df["Feature"].nunique()+80),
         )
         fig_sum.update_layout(
-            plot_bgcolor="rgba(248,249,252,1)", paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#333333", size=11),
-            autosize=True,
-            margin=dict(t=56, b=40, l=10, r=10),
-            yaxis=dict(title="", tickfont=dict(size=10), categoryorder="total ascending"),
-            xaxis=dict(title="Mean |SHAP value|", tickfont=dict(size=10)),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                        xanchor="right", x=1, font=dict(size=10)),
+            plot_bgcolor="rgba(245,248,252,1)", paper_bgcolor="rgba(0,0,0,0)",
+            margin=dict(t=44,b=20,l=10,r=10),
+            yaxis=dict(title=""),
+            xaxis=dict(title="Mean |SHAP value|"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.01,
+                        xanchor="right", x=1),
         )
         st.plotly_chart(fig_sum, use_container_width=True)
         _top_overall = (summary_df.groupby("Feature")["Mean |SHAP|"]
@@ -1732,7 +1541,7 @@ def render_pattern_analysis_tab():
         st.markdown("**Overall most impactful features (averaged across all 4 questions):**")
         for feat, imp in top_overall.items():
             st.markdown(
-                f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{feat}</b> -- '
+                f'<div class="strong-box">- <b>{feat}</b> -- '
                 f'avg SHAP impact = {imp:.4f} across all questions</div>',
                 unsafe_allow_html=True)
 
@@ -1978,14 +1787,14 @@ def render_pattern_analysis_tab():
         st.markdown("#### Top positive patterns (columns that co-occur for HIGH scores)")
         for _, r in top_pos.iterrows():
             st.markdown(
-            f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["% Positive"]}% positive</b> '
+            f'<div class="strong-box">- <b>{r["% Positive"]}% positive</b> '
             f'(n={r["n (respondents)"]:,}) when: {r["Rule (column co-occurrence)"]}</div>',
             unsafe_allow_html=True)
 
         st.markdown("#### Top negative patterns (columns that co-occur for LOW scores)")
         for _, r in top_neg.iterrows():
             st.markdown(
-            f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">-- <b>{r["% Positive"]}% positive</b> '
+            f'<div class="warn-box">-- <b>{r["% Positive"]}% positive</b> '
             f'(n={r["n (respondents)"]:,}) when: {r["Rule (column co-occurrence)"]}</div>',
             unsafe_allow_html=True)
 
@@ -2057,12 +1866,9 @@ def render_pattern_analysis_tab():
     )
     fig_co.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#333333", size=10),
-        autosize=True,
-        height=max(420, 46*len(feat_labels_rf)+80),
-        margin=dict(t=60, b=70, l=10, r=10),
-        xaxis=dict(tickangle=-40, tickfont=dict(size=9)),
-        yaxis=dict(tickfont=dict(size=9)),
+        font=dict(color="#444444"),
+        height=max(400, 45*len(feat_labels_rf)+80),
+        margin=dict(t=60, b=20, l=10, r=10),
     )
     st.plotly_chart(fig_co, use_container_width=True)
 
@@ -2108,14 +1914,13 @@ def render_pattern_analysis_tab():
     )
     fig_copairs.update_traces(textposition="outside", marker_line_width=0)
     fig_copairs.update_layout(
-        plot_bgcolor="rgba(248,249,252,1)",
+        plot_bgcolor="rgba(245,248,252,1)",
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#333333", size=10),
-        autosize=True,
-        height=max(360, 44*len(co_pairs_df)+80),
-        margin=dict(t=48, b=40, l=10, r=80),
+        font=dict(color="#444444"),
+        height=400,
+        margin=dict(t=44, b=20, l=10, r=20),
         coloraxis_showscale=False,
-        yaxis=dict(title="", tickfont=dict(size=9)),
+        yaxis=dict(title=""),
         xaxis=dict(title="Co-importance score"),
         showlegend=False,
     )
@@ -2123,7 +1928,7 @@ def render_pattern_analysis_tab():
 
     for _, r in co_pairs_df.head(3).iterrows():
         st.markdown(
-            f'<div style="color:inherit;background:rgba(74,159,212,0.12);border-left:4px solid #3A7DC0;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["Feature A"]}</b> and <b>{r["Feature B"]}</b> jointly account for the most variation in <b>{q_label6}</b> (co-importance = {r["Co-importance"]:.5f}).</div>',
+            f'<div class="insight-box">- <b>{r["Feature A"]}</b> and <b>{r["Feature B"]}</b> jointly account for the most variation in <b>{q_label6}</b> (co-importance = {r["Co-importance"]:.5f}).</div>',
             unsafe_allow_html=True)
 
     # ==============================================================================
@@ -2215,12 +2020,11 @@ def render_pattern_analysis_tab():
         ),
     ))
     fig_sankey.update_layout(
-        title=f"Sankey: {top2_label[0]} + {top2_label[1]} -> {q_label6}",
+        title=f"Sankey: {top2_label[0]} + {top2_label[1]} --> {q_label6}",
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#333333", size=10),
-        autosize=True,
-        height=500,
-        margin=dict(t=60, b=40, l=10, r=10),
+        font=dict(color="#444444", size=11),
+        height=520,
+        margin=dict(t=60, b=20, l=20, r=20),
     )
     st.plotly_chart(fig_sankey, use_container_width=True)
     st.caption(f"Driven by top-2 RF features: **{top2_label[0]}** and **{top2_label[1]}**")
@@ -2323,14 +2127,13 @@ def render_pattern_analysis_tab():
                               annotation_text="50% threshold",
                               annotation_position="bottom right")
         fig_bubble.update_layout(
-            plot_bgcolor="rgba(248,249,252,1)",
+            plot_bgcolor="rgba(245,248,252,1)",
             paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#333333", size=11),
-            autosize=True,
-            height=520,
-            margin=dict(t=60, b=50, l=10, r=10),
-            coloraxis_colorbar=dict(title="% Positive", tickfont=dict(size=9)),
-            xaxis=dict(title="% of Respondents (how common)", tickfont=dict(size=10)),
+            font=dict(color="#444444"),
+            height=560,
+            margin=dict(t=60, b=20, l=10, r=10),
+            coloraxis_colorbar=dict(title="% Positive"),
+            xaxis=dict(title="% of Respondents (frequency of this combination)"),
             yaxis=dict(title="% Positive Response", range=[-5, 105]),
         )
         st.plotly_chart(fig_bubble, use_container_width=True)
@@ -2360,14 +2163,14 @@ def render_pattern_analysis_tab():
             st.markdown("**Common combinations with HIGH positive rate (top-right quadrant):**")
             for _, r in common_pos.sort_values("pos_pct", ascending=False).head(4).iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
+                    f'<div class="strong-box">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
                     unsafe_allow_html=True)
 
         if not common_neg.empty:
             st.markdown("**Common combinations with LOW positive rate (bottom-right quadrant):**")
             for _, r in common_neg.sort_values("pos_pct").head(4).iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
+                    f'<div class="warn-box">- <b>{r["combo"]}</b>: {r["pos_pct"]}% positive, {r["n"]} respondents ({r["freq_pct"]}% of total)</div>',
                     unsafe_allow_html=True)
 
     # ==============================================================================
@@ -2434,7 +2237,7 @@ def render_pattern_analysis_tab():
             y=[str(r)[:25] for r in pivot5.index],
             text=annot.values,
             texttemplate="%{text}",
-            textfont=dict(size=11, color="#111111"),
+            textfont=dict(size=11, color="black"),
             colorscale="RdYlGn",
             zmin=0, zmax=100,
             colorbar=dict(title="% Positive", thickness=14),
@@ -2447,13 +2250,12 @@ def render_pattern_analysis_tab():
         ))
         fig_hm5.update_layout(
             title=f"% Positive: {la5} (rows) x {lb5} (columns)",
-            xaxis=dict(title=lb5, tickangle=-40, tickfont=dict(size=9)),
-            yaxis=dict(title=la5, tickfont=dict(size=9)),
-            plot_bgcolor="rgba(248,249,252,1)",
+            xaxis=dict(title=lb5, tickangle=-30, tickfont=dict(size=11)),
+            yaxis=dict(title=la5, tickfont=dict(size=11)),
+            plot_bgcolor="rgba(245,248,252,1)",
             paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#333333", size=10),
-            autosize=True,
-            height=max(320, 58 * len(pivot5) + 120),
+            font=dict(color="#444444"),
+            height=max(300, 55 * len(pivot5) + 120),
             margin=dict(t=60, b=80, l=10, r=10),
         )
         st.plotly_chart(fig_hm5, use_container_width=True)
@@ -2472,12 +2274,12 @@ def render_pattern_analysis_tab():
             f"{'is substantial - the two features together create meaningfully different outcomes across groups' if _hm5_range >= 20 else 'is moderate - the features have some influence on outcomes but the effect is not dramatic across all combinations'}.",
         ])
         st.markdown(
-            f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+            f'<div class="strong-box">'
             f'Highest: <b>{best5[feat_a5]}</b> + <b>{best5[feat_b5]}</b> '
             f'-- {best5["pct"]:.0f}% positive (n={int(best5["count"])})'
             f'</div>', unsafe_allow_html=True)
         st.markdown(
-            f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+            f'<div class="warn-box">'
             f'Lowest: <b>{worst5[feat_a5]}</b> + <b>{worst5[feat_b5]}</b> '
             f'-- {worst5["pct"]:.0f}% positive (n={int(worst5["count"])})'
             f'</div>', unsafe_allow_html=True)
@@ -2564,7 +2366,7 @@ def render_pattern_analysis_tab():
             st.markdown("**Key HIGH-performing co-occurrences found by ML:**")
             for _, r in high_patterns.iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(46,158,82,0.12);border-left:4px solid #2E9E52;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+                    f'<div class="strong-box">'
                     f'When <b>{r["Feature A"]}</b> = <i>{r["Value A"]}</i> '
                     f'AND <b>{r["Feature B"]}</b> = <i>{r["Value B"]}</i>: '
                     f'<b>{r["% Positive"]:.0f}% positive response</b> '
@@ -2575,7 +2377,7 @@ def render_pattern_analysis_tab():
             st.markdown("**Key LOW-performing co-occurrences found by ML:**")
             for _, r in low_patterns.sort_values("% Positive").iterrows():
                 st.markdown(
-                    f'<div style="color:inherit;background:rgba(224,155,0,0.12);border-left:4px solid #E09B00;border-radius:7px;padding:10px 16px;margin:6px 0;font-size:0.91rem;line-height:1.55;">'
+                    f'<div class="warn-box">'
                     f'When <b>{r["Feature A"]}</b> = <i>{r["Value A"]}</i> '
                     f'AND <b>{r["Feature B"]}</b> = <i>{r["Value B"]}</i>: '
                     f'only <b>{r["% Positive"]:.0f}% positive response</b> '
@@ -2592,9 +2394,9 @@ def render_pattern_analysis_tab():
         "All patterns are data-driven, not hand-picked."
     )
 
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 # TABS
-# -------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🌟 Workshop Usefulness",
     "🧠 Changed Understanding",
