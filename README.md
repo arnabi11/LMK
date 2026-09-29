@@ -147,7 +147,7 @@ streamlit run lmk_final_dashboard_final.py
 
 Visit **http://localhost:8501**
 
-Place both CSV files in the same directory as `lmk_final_dashboard_final.py` before launching.
+Place both CSV files in the same directory as `lmk_dash.py` before launching.
 
 ---
 
@@ -155,7 +155,7 @@ Place both CSV files in the same directory as `lmk_final_dashboard_final.py` bef
 
 ```
 LMK/
-├── lmk_final_dashboard_final.py     # Main dashboard (6 tabs, 3,156 lines)
+├── lmk_dash.py     # Main dashboard (6 tabs, 3,156 lines)
 ├── lmk_shap_patterns_final.py       # Standalone SHAP + pattern analysis app (2,091 lines)
 ├── lmk_ml_clustering.py             # Standalone ML clustering app (859 lines)
 │
@@ -166,7 +166,7 @@ LMK/
 └── README.md                        # This file
 ```
 
-> **Note:** Files ending in `_old.py`, `_error.py`, `_bug.py`, `_err.py` are earlier development versions kept for reference. Only `lmk_final_dashboard_final.py` is the production file.
+> **Note:** Files ending in `_old.py`, `_error.py`, `_bug.py`, `_err.py` are earlier development versions kept for reference. Only `lmk_dash.py` is the production file.
 
 ---
 
